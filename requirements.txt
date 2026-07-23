@@ -1,0 +1,9 @@
+gradio
+duckdb
+groq
+duckduckgo-search
+google-genai
+openai
+requests
+pandas
+gdown
