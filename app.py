@@ -1,6 +1,6 @@
 # ============================================================
 # 🏏 ULTIMATE CRICKET AI – Developed by Kartikey Sachan
-#        Deployable Version (Reads Keys from .env / Secrets)
+#        DEPLOYABLE VERSION (KEYS EMBEDDED FOR TESTING)
 # ============================================================
 
 import os
@@ -9,7 +9,6 @@ warnings.filterwarnings("ignore")
 
 import gdown
 import duckdb
-import pandas as pd
 import gradio as gr
 import re
 import requests
@@ -25,65 +24,40 @@ from openai import OpenAI
 from duckduckgo_search import DDGS
 
 # ============================================================
-# 🔑 1. READ API KEYS FROM ENVIRONMENT VARIABLES (SECURE)
+# 🔑 YOUR API KEYS (DIRECTLY PASTED – TEST ONLY)
 # ============================================================
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
-CRICAPI_KEY = os.environ.get("CRICAPI_KEY")
-RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY")
-
-# Check if keys are loaded (optional warning)
-if not all([GROQ_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY]):
-    print("⚠️ WARNING: Some AI API keys are missing. Please set them in environment variables.")
+GROQ_API_KEY = "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"
+GEMINI_API_KEY = "AQ.Ab8RN6LpSnSVn5MlD1qV3QwuZIsKD8XuNCNZ6pInk0wTdXWl5g"
+MISTRAL_API_KEY = "eB6PwGvxzWnHkqob6zEKJmBvVOPviAD5"
+CRICAPI_KEY = "a6ff2bd0-19c9-4bf8-9b6e-5c5cf23bccad"
+RAPIDAPI_KEY = "e3d47d7ee3msh15e18bc016c3bb2p16c3d4jsn2762c63da0ff"
 
 # ============================================================
-# 📂 2. LOAD / DOWNLOAD DATA (From Google Drive)
+# 📂 DATA DOWNLOAD (Google Drive)
 # ============================================================
-# Folder where Hugging Face / Streamlit expect persistent data
-DATA_DIR = "/data" if os.path.exists("/data") else os.getcwd()
-PARQUET_PATH = os.path.join(DATA_DIR, "master_cricket_stats.parquet")
-FILE_ID = "1rnUshf-no-AVNUvZjOvh86vPuKFRXZ2h"  # Your Google Drive File ID
+FILE_ID = "1rnUshf-no-AVNUvZjOvh86vPuKFRXZ2h"
+DATA_PATH = "master_cricket_stats.parquet"
 
-def load_data():
-    if os.path.exists(PARQUET_PATH):
-        print(f"✅ Data found locally: {PARQUET_PATH}")
-        return duckdb.connect(':memory:'), PARQUET_PATH
-    
-    print("📥 Data not found locally. Downloading 400MB from Google Drive (First time only)...")
-    try:
-        os.makedirs(DATA_DIR, exist_ok=True)
-        url = f"https://drive.google.com/uc?id={FILE_ID}"
-        gdown.download(url, PARQUET_PATH, quiet=False)
-        print("✅ Download complete!")
-        return duckdb.connect(':memory:'), PARQUET_PATH
-    except Exception as e:
-        print(f"❌ Download failed: {e}")
-        # Fallback to empty database so the app doesn't crash
-        db = duckdb.connect(':memory:')
-        db.execute("CREATE TABLE matches AS SELECT 'No data' as venue, 'Unknown' as match_type, 'Unknown' as season, 'Unknown' as batting_team, 'Unknown' as bowling_team, 'Unknown' as batsman, 'Unknown' as bowler, 0 as runs WHERE 1=0")
-        return db, None
+if not os.path.exists(DATA_PATH):
+    print("📥 Downloading data from Google Drive (first time)...")
+    gdown.download(f"https://drive.google.com/uc?id={FILE_ID}", DATA_PATH, quiet=False)
+    print("✅ Download complete!")
 
-# Initialize DB
-db, data_path = load_data()
-if data_path:
-    db.execute(f"CREATE OR REPLACE TABLE matches AS SELECT * FROM read_parquet('{data_path}')")
-    count = db.execute("SELECT COUNT(*) FROM matches").fetchone()[0]
-    print(f"✅ Loaded {count:,} deliveries successfully!")
-else:
-    count = 0
+db = duckdb.connect(':memory:')
+db.execute(f"CREATE TABLE matches AS SELECT * FROM read_parquet('{DATA_PATH}')")
+count = db.execute("SELECT COUNT(*) FROM matches").fetchone()[0]
+print(f"✅ Loaded {count:,} deliveries.")
 
 # ============================================================
-# 🌐 3. INITIALIZE AI CLIENTS
+# 🧠 AI CLIENTS
 # ============================================================
 groq_client = Groq(api_key=GROQ_API_KEY)
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 mistral_client = OpenAI(api_key=MISTRAL_API_KEY, base_url="https://api.mistral.ai/v1")
 
 # ============================================================
-# 🛠️ 4. HELPER FUNCTIONS (Search, Weather, Live Scores, Stats)
+# 🌐 HELPER FUNCTIONS
 # ============================================================
-
 def search_web(query, max_results=5):
     try:
         with DDGS() as ddgs:
@@ -154,7 +128,7 @@ def format_live_matches(matches):
     return output
 
 def get_player_stats(player_name):
-    if not player_name or count == 0: return None
+    if not player_name: return None
     try:
         query = f"""
         SELECT 
@@ -178,7 +152,7 @@ def get_player_stats(player_name):
     except: return None
 
 def get_head_to_head(player, bowler):
-    if not player or not bowler or count == 0: return None
+    if not player or not bowler: return None
     try:
         query = f"""
         SELECT 
@@ -198,9 +172,6 @@ def get_head_to_head(player, bowler):
         }
     except: return None
 
-# ============================================================
-# 🤖 5. AI CORE FUNCTIONS (Extract, Research, Generate)
-# ============================================================
 def extract_player_names(question):
     prompt = f"Extract the cricketer name(s) from this question: '{question}'. Return only the names, comma-separated. If no player, return 'None'."
     try:
@@ -242,9 +213,10 @@ def call_mistral(prompt, timeout=20):
 
 def generate_answer(question, player_stats, h2h_stats, weather="", live="", web_research=""):
     prompt = f"""
-    You are a World-Class Cricket Analyst. Use all the provided data and your cricket knowledge.
+    You are a World-Class Cricket Analyst. Use all the provided data and your cricket knowledge to give a comprehensive, tactical answer.
 
     USER QUESTION: {question}
+
     """
     if player_stats:
         prompt += f"""
@@ -275,7 +247,7 @@ def generate_answer(question, player_stats, h2h_stats, weather="", live="", web_
     return call_mistral(prompt)
 
 # ============================================================
-# 💬 6. MAIN CHAT FUNCTION
+# 💬 MAIN CHAT FUNCTION
 # ============================================================
 def chat_function(message, history):
     print(f"\n🧠 User: {message}")
@@ -320,10 +292,9 @@ def chat_function(message, history):
     return answer
 
 # ============================================================
-# 🖥️ 7. LAUNCH GRADIO INTERFACE
+# 🖥️ GRADIO INTERFACE
 # ============================================================
 
-# Create Chatbot with greeting
 chatbot = gr.Chatbot(
     value=[{"role": "assistant", "content": "I am your cricket AI developed by Kartikey Sachan. How may I help you?"}],
     height=500
@@ -335,5 +306,4 @@ iface = gr.ChatInterface(
     chatbot=chatbot
 )
 
-# For Streamlit Cloud / Hugging Face, we just use launch()
 iface.launch()
