@@ -304,7 +304,9 @@ iface = gr.ChatInterface(
     chatbot=chatbot
 )
 
-# ✅ Railway‑compatible launch: bind to 0.0.0.0 and use $PORT
+# ============================================================
+# ✅ RAILWAY-COMPATIBLE LAUNCH (Binds to 0.0.0.0 and uses $PORT)
+# ============================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     iface.launch(server_name="0.0.0.0", server_port=port)
