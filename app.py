@@ -1,5 +1,5 @@
 # ============================================================
-# 🏏 ULTIMATE CRICKET AI – Memory‑Efficient Version
+# 🏏 ULTIMATE CRICKET AI – Railway Deployment
 #        Developed by Kartikey Sachan
 # ============================================================
 
@@ -14,17 +14,14 @@ import re
 import requests
 from datetime import datetime
 
-# --- AI Libraries ---
 from groq import Groq
 from google import genai
 from google.genai import types
 from openai import OpenAI
-
-# --- Web Search ---
 from duckduckgo_search import DDGS
 
 # ============================================================
-# 🔑 API KEYS (Testing only – for production, use secrets)
+# 🔑 API KEYS (Hardcoded for this deployment)
 # ============================================================
 GROQ_API_KEY = "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"
 GEMINI_API_KEY = "AQ.Ab8RN6LpSnSVn5MlD1qV3QwuZIsKD8XuNCNZ6pInk0wTdXWl5g"
@@ -33,32 +30,32 @@ CRICAPI_KEY = "a6ff2bd0-19c9-4bf8-9b6e-5c5cf23bccad"
 RAPIDAPI_KEY = "e3d47d7ee3msh15e18bc016c3bb2p16c3d4jsn2762c63da0ff"
 
 # ============================================================
-# 📂 DATA – Download once, then query directly (no load)
+# 📂 DATA – Download once, query directly (memory‑efficient)
 # ============================================================
 FILE_ID = "1rnUshf-no-AVNUvZjOvh86vPuKFRXZ2h"
 DATA_PATH = "master_cricket_stats.parquet"
 
 if not os.path.exists(DATA_PATH):
-    print("📥 Downloading data from Google Drive (first time)...")
+    print("📥 Downloading 400 MB data from Google Drive...")
     gdown.download(f"https://drive.google.com/uc?id={FILE_ID}", DATA_PATH, quiet=False)
     print("✅ Download complete!")
 
-# We do NOT load the data into memory. We'll query the Parquet file directly.
-db = duckdb.connect(':memory:')  # lightweight – only query plan, not data
-
-# Quick check: get row count (uses metadata, not full scan)
-count = db.execute(f"SELECT COUNT(*) FROM read_parquet('{DATA_PATH}')").fetchone()[0]
-print(f"✅ Data ready: {count:,} deliveries (queried on‑demand).")
+db = duckdb.connect(':memory:')
+try:
+    count = db.execute(f"SELECT COUNT(*) FROM read_parquet('{DATA_PATH}')").fetchone()[0]
+    print(f"✅ Data ready: {count:,} deliveries (queried on‑demand).")
+except Exception as e:
+    print(f"⚠️ Data error: {e}")
 
 # ============================================================
-# 🧠 AI CLIENTS
+# 🤖 AI CLIENTS
 # ============================================================
 groq_client = Groq(api_key=GROQ_API_KEY)
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 mistral_client = OpenAI(api_key=MISTRAL_API_KEY, base_url="https://api.mistral.ai/v1")
 
 # ============================================================
-# 🌐 HELPER FUNCTIONS (same as before, but DB queries use read_parquet directly)
+# 🌐 HELPER FUNCTIONS (Direct Parquet queries – Memory Safe)
 # ============================================================
 def search_web(query, max_results=5):
     try:
@@ -129,7 +126,6 @@ def format_live_matches(matches):
         output += f"• **{name}**\n  {status}\n  {t1}: {s1} | {t2}: {s2}\n\n"
     return output
 
-# ----- Memory‑efficient stats queries -----
 def get_player_stats(player_name):
     if not player_name: return None
     try:
@@ -250,7 +246,7 @@ def generate_answer(question, player_stats, h2h_stats, weather="", live="", web_
     return call_mistral(prompt)
 
 # ============================================================
-# 💬 MAIN CHAT FUNCTION
+# 💬 CHAT FUNCTION
 # ============================================================
 def chat_function(message, history):
     print(f"\n🧠 User: {message}")
@@ -297,7 +293,6 @@ def chat_function(message, history):
 # ============================================================
 # 🖥️ GRADIO INTERFACE
 # ============================================================
-
 chatbot = gr.Chatbot(
     value=[{"role": "assistant", "content": "I am your cricket AI developed by Kartikey Sachan. How may I help you?"}],
     height=500
@@ -309,4 +304,7 @@ iface = gr.ChatInterface(
     chatbot=chatbot
 )
 
-iface.launch()
+# ✅ Railway‑compatible launch: bind to 0.0.0.0 and use $PORT
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 7860))
+    iface.launch(server_name="0.0.0.0", server_port=port)
