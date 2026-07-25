@@ -1,5 +1,5 @@
 # ============================================================
-# 🏏 ULTIMATE CRICKET AI – Railway Deployment
+# 🏏 ULTIMATE CRICKET AI – Railway with Volume
 #        Developed by Kartikey Sachan
 # ============================================================
 
@@ -21,7 +21,7 @@ from openai import OpenAI
 from duckduckgo_search import DDGS
 
 # ============================================================
-# 🔑 API KEYS (Hardcoded for this deployment)
+# 🔑 API KEYS
 # ============================================================
 GROQ_API_KEY = "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"
 GEMINI_API_KEY = "AQ.Ab8RN6LpSnSVn5MlD1qV3QwuZIsKD8XuNCNZ6pInk0wTdXWl5g"
@@ -30,15 +30,21 @@ CRICAPI_KEY = "a6ff2bd0-19c9-4bf8-9b6e-5c5cf23bccad"
 RAPIDAPI_KEY = "e3d47d7ee3msh15e18bc016c3bb2p16c3d4jsn2762c63da0ff"
 
 # ============================================================
-# 📂 DATA – Download once, query directly (memory‑efficient)
+# 📂 DATA – Railway Volume path
 # ============================================================
+# ✅ YEH CHANGE KIYA GAYA HAI – Volume mount path
 FILE_ID = "1rnUshf-no-AVNUvZjOvh86vPuKFRXZ2h"
-DATA_PATH = "master_cricket_stats.parquet"
+DATA_PATH = "/data/master_cricket_stats.parquet"   # <-- Volume path
+
+# Pehle /data folder exist karta hai ya nahi check karein
+os.makedirs("/data", exist_ok=True)
 
 if not os.path.exists(DATA_PATH):
-    print("📥 Downloading 400 MB data from Google Drive...")
+    print("📥 Downloading 400 MB data from Google Drive to Volume...")
     gdown.download(f"https://drive.google.com/uc?id={FILE_ID}", DATA_PATH, quiet=False)
-    print("✅ Download complete!")
+    print("✅ Download complete! File saved in Volume.")
+else:
+    print("✅ Data already exists in Volume.")
 
 db = duckdb.connect(':memory:')
 try:
@@ -55,7 +61,7 @@ gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 mistral_client = OpenAI(api_key=MISTRAL_API_KEY, base_url="https://api.mistral.ai/v1")
 
 # ============================================================
-# 🌐 HELPER FUNCTIONS (Direct Parquet queries – Memory Safe)
+# 🌐 HELPER FUNCTIONS (Same as before – memory efficient)
 # ============================================================
 def search_web(query, max_results=5):
     try:
@@ -305,7 +311,7 @@ iface = gr.ChatInterface(
 )
 
 # ============================================================
-# ✅ RAILWAY-COMPATIBLE LAUNCH (Binds to 0.0.0.0 and uses $PORT)
+# ✅ RAILWAY-COMPATIBLE LAUNCH
 # ============================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
